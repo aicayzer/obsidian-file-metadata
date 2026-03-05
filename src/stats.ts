@@ -83,3 +83,58 @@ export function estimatePages(words: number, wordsPerPage: number): number {
   if (words === 0 || wordsPerPage <= 0) return 0;
   return Math.ceil(words / wordsPerPage);
 }
+
+// ── Reading time ───────────────────────────────────────────────────────────
+
+export function estimateReadingTime(words: number, wpm: number = 200): string {
+  const mins = Math.ceil(words / wpm);
+  if (mins < 1) return '< 1 min';
+  return `${mins} min`;
+}
+
+// ── Flesch readability ─────────────────────────────────────────────────────
+
+export function countSyllables(word: string): number {
+  let w = word.toLowerCase().replace(/[^a-z]/g, '');
+  if (w.length <= 3) return 1;
+  w = w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '');
+  w = w.replace(/^y/, '');
+  const m = w.match(/[aeiouy]{1,2}/g);
+  return m ? m.length : 1;
+}
+
+export function fleschReadingEase(raw: string): number {
+  const text = stripMarkdown(raw);
+  const words = text.trim() ? text.trim().split(/\s+/) : [];
+  const wordCount = words.length;
+  const sentenceCount = (text.match(/[.!?]+(?:\s|$)/g) ?? []).length || 1;
+  const syllables = words.reduce((s, w) => s + countSyllables(w), 0);
+  if (wordCount === 0) return 0;
+  return Math.round(
+    206.835 - 1.015 * (wordCount / sentenceCount) - 84.6 * (syllables / wordCount)
+  );
+}
+
+export function fleschLabel(score: number): string {
+  if (score >= 90) return 'Very easy';
+  if (score >= 80) return 'Easy';
+  if (score >= 70) return 'Fairly easy';
+  if (score >= 60) return 'Standard';
+  if (score >= 50) return 'Fairly hard';
+  if (score >= 30) return 'Hard';
+  return 'Very hard';
+}
+
+// ── Link & code block counts ───────────────────────────────────────────────
+
+export function countInternalLinks(raw: string): number {
+  return (raw.match(/\[\[([^\]]+)\]\]/g) ?? []).length;
+}
+
+export function countExternalLinks(raw: string): number {
+  return (raw.match(/\[([^\]]*)\]\(https?:\/\/[^)]+\)/g) ?? []).length;
+}
+
+export function countCodeBlocks(raw: string): number {
+  return ((raw.match(/^```/gm) ?? []).length / 2) | 0;
+}

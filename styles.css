@@ -1,3 +1,64 @@
+/* @settings
+name: File Metadata
+id: file-metadata
+settings:
+  -
+    id: fm-heading-colors
+    title: Colors
+    type: heading
+    level: 2
+    collapsed: true
+  -
+    id: fm-header-color
+    title: Section header color
+    type: variable-themed-color
+    format: hex
+    default-light: '#383a42'
+    default-dark: '#dcddde'
+  -
+    id: fm-label-color
+    title: Row label color
+    type: variable-themed-color
+    format: hex
+    default-light: '#6e7781'
+    default-dark: '#999'
+  -
+    id: fm-value-color
+    title: Row value color
+    type: variable-themed-color
+    format: hex
+    default-light: '#1f2328'
+    default-dark: '#dcddde'
+  -
+    id: fm-heading-layout
+    title: Layout
+    type: heading
+    level: 2
+    collapsed: true
+  -
+    id: fm-divider-opacity
+    title: Section divider opacity
+    type: variable-number-slider
+    default: 0.5
+    min: 0
+    max: 1
+    step: 0.05
+  -
+    id: fm-section-spacing
+    title: Spacing above divider (px)
+    type: variable-number
+    default: 12
+    format: px
+  -
+    id: fm-label-width
+    title: Label column width (%)
+    type: variable-number-slider
+    default: 40
+    min: 20
+    max: 60
+    step: 5
+*/
+
 /* ═══════════════════════════════════════════════════
    File Metadata Plugin
    Scoped under .fm-pane to avoid conflicts.
@@ -25,28 +86,40 @@
 .fm-divider {
   height: 1px;
   background: var(--background-modifier-border);
-  margin: 12px 16px 2px;
-  opacity: 0.5;
+  margin: var(--fm-section-spacing, 12px) 16px 2px;
+  opacity: var(--fm-divider-opacity, 0.5);
 }
 
 /* ── Section headers (fm-header) ──────────────────── */
 
 .fm-header .tree-item-self {
-  color: var(--text-normal);
+  color: var(--fm-header-color, var(--text-normal));
   font-weight: var(--nav-heading-weight);
   padding-block: 6px 2px;
+}
+
+/* Collapse chevron */
+.fm-header .tree-item-icon.collapse-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-faint);
+  transition: transform 0.15s ease;
+}
+
+.fm-header .tree-item-icon.collapse-icon.is-open {
+  transform: rotate(90deg);
 }
 
 /* ── Data rows (inside fm-pane) ───────────────────── */
 
 .fm-pane .tree-item-self {
-  color: var(--text-muted);
+  color: var(--fm-label-color, var(--text-muted));
   padding-inline-start: var(--size-4-2);
 }
 
-/* Label: fixed 40% so values always right-align consistently */
+/* Label: configurable width so values always right-align consistently */
 .fm-pane .tree-item-inner {
-  flex: 0 0 40%;
+  flex: 0 0 var(--fm-label-width, 40%);
   min-width: 0;
 }
 
@@ -61,7 +134,7 @@
 /* Value text: right-aligned, clamps at 3 lines, wraps on word boundaries */
 .fm-pane .tree-item-flair,
 .fm-pane .tree-item-self:hover .tree-item-flair {
-  color: var(--text-normal);
+  color: var(--fm-value-color, var(--text-normal));
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -79,12 +152,12 @@
   flex: 1 1 auto;
 }
 
-/* Inherit faint colour; transition on hover */
+/* Inherit muted colour; transition on hover */
 .fm-outline .tree-item-self .tree-item-inner {
-  color: var(--text-muted);
+  color: var(--fm-label-color, var(--text-muted));
   transition: color 0.1s ease;
 }
 
 .fm-outline .tree-item-self:hover .tree-item-inner {
-  color: var(--text-normal);
+  color: var(--fm-value-color, var(--text-normal));
 }

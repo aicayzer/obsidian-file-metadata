@@ -5,10 +5,14 @@ A sidebar panel for [Obsidian](https://obsidian.md) that shows file info, text s
 ## Features
 
 - **File info** — name, full path, folder, created/modified dates, size
-- **Text statistics** — words, characters, sentences, paragraphs, estimated pages
+- **Text statistics** — words, characters, sentences, paragraphs, estimated pages, reading time, readability score
+- **Link & code counts** — internal/external links, fenced code blocks
 - **Document outline** — clickable headings indented by level
 - **Image metadata** — dimensions, colour space, camera (EXIF via [exifr](https://github.com/MikeKovarik/exifr))
-- **Click to copy** — click any row to copy its value; file name copies the full vault path
+- **Collapsible sections** — click any section header to collapse or expand it
+- **Click to copy** — click any row to copy its value; right-click for more options
+- **Date format** — choose between short, long, or relative date display
+- **Style Settings support** — customise colours, spacing, and layout via the [Style Settings](https://github.com/mgmeyers/obsidian-style-settings) plugin
 - **Configurable** — toggle individual fields and sections on or off in Settings
 
 ## Installation
@@ -30,6 +34,14 @@ Click the **ⓘ** icon in the left ribbon, or run **File Metadata: Open File Met
 
 The panel lives in the right sidebar and updates as you switch files or edit.
 
+### Collapsible sections
+
+Click any section header (File, Statistics, Outline) to collapse or expand it. The collapsed state is remembered for the duration of the session.
+
+### Context menu
+
+Right-click any row to copy just the value, or copy the full "Label: Value" pair.
+
 ## Settings
 
 **Settings → File Metadata**
@@ -44,6 +56,7 @@ The panel lives in the right sidebar and updates as you switch files or edit.
 | Show created date | On | Creation date and time |
 | Show modified date | On | Last modified date and time |
 | Show file size | On | Size on disk |
+| Date format | Short | Choose **Short** (5 Mar 2026, 14:30), **Long** (Wed, 5 March 2026, 14:30), or **Relative** (3h ago) |
 
 ### Statistics
 
@@ -54,6 +67,11 @@ The panel lives in the right sidebar and updates as you switch files or edit.
 | Show paragraphs | On | Paragraph count |
 | Show estimated pages | On | Estimated page count |
 | Words per page | 300 | Used for the page estimate |
+| Show reading time | On | Estimated reading time based on word count |
+| Reading speed (wpm) | 200 | Words per minute for the reading time estimate |
+| Show readability score | Off | Flesch reading ease (0–100); higher = easier to read |
+| Show link counts | Off | Internal ([[wikilinks]]) and external link counts |
+| Show code block count | Off | Number of fenced code blocks |
 
 ### Outline
 
@@ -66,6 +84,21 @@ The panel lives in the right sidebar and updates as you switch files or edit.
 | Setting | Default | Description |
 |---|---|---|
 | Click to copy | On | Click any row to copy its value |
+
+## Style Settings
+
+If you have the [Style Settings](https://github.com/mgmeyers/obsidian-style-settings) plugin installed, File Metadata exposes the following customisation options under **Style Settings → File Metadata**:
+
+| Option | Type | Default |
+|---|---|---|
+| Section header colour | Themed colour | Text normal |
+| Row label colour | Themed colour | Text muted |
+| Row value colour | Themed colour | Text normal |
+| Section divider opacity | Slider (0–1) | 0.5 |
+| Spacing above divider | Number (px) | 12 |
+| Label column width | Slider (20–60%) | 40% |
+
+Without Style Settings installed, the plugin uses sensible defaults and looks identical.
 
 ## Attribution
 

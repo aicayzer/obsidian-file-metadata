@@ -9,6 +9,7 @@ export interface FileMetadataSettings {
   showCreated:  boolean;
   showModified: boolean;
   showSize:     boolean;
+  dateFormat:   'short' | 'long' | 'relative';
 
   // ── Section visibility ────────────────────────────
   showStatistics: boolean;
@@ -19,6 +20,11 @@ export interface FileMetadataSettings {
   showParagraphs:     boolean;
   showEstimatedPages: boolean;
   wordsPerPage:       number;
+  showReadingTime:    boolean;
+  readingWpm:         number;
+  showReadability:    boolean;
+  showLinks:          boolean;
+  showCodeBlocks:     boolean;
 
   // ── Behaviour ─────────────────────────────────────
   clickToCopy: boolean;
@@ -31,6 +37,7 @@ export const DEFAULT_SETTINGS: FileMetadataSettings = {
   showCreated:  true,
   showModified: true,
   showSize:     true,
+  dateFormat:   'short',
 
   showStatistics: true,
   showOutline:    true,
@@ -39,6 +46,11 @@ export const DEFAULT_SETTINGS: FileMetadataSettings = {
   showParagraphs:     true,
   showEstimatedPages: true,
   wordsPerPage:       300,
+  showReadingTime:    true,
+  readingWpm:         200,
+  showReadability:    false,
+  showLinks:          false,
+  showCodeBlocks:     false,
 
   clickToCopy: true,
 };
@@ -57,7 +69,7 @@ export class FileMetadataSettingTab extends PluginSettingTab {
 
     // ── File section ─────────────────────────────────────────────────────────
 
-    containerEl.createEl('h3', { text: 'File section' });
+    containerEl.createEl('h3', { text: 'File' });
 
     new Setting(containerEl)
       .setName('Show file name')
@@ -101,6 +113,19 @@ export class FileMetadataSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.showSize)
         .onChange(async v => { this.plugin.settings.showSize = v; await this.save(); }));
 
+    new Setting(containerEl)
+      .setName('Date format')
+      .setDesc('Choose how dates are displayed.')
+      .addDropdown(d => d
+        .addOption('short', 'Short — 5 Mar 2026, 14:30')
+        .addOption('long', 'Long — Wed, 5 March 2026, 14:30')
+        .addOption('relative', 'Relative — 3h ago')
+        .setValue(this.plugin.settings.dateFormat)
+        .onChange(async v => {
+          this.plugin.settings.dateFormat = v as 'short' | 'long' | 'relative';
+          await this.save();
+        }));
+
     // ── Statistics ────────────────────────────────────────────────────────────
 
     containerEl.createEl('h3', { text: 'Statistics' });
@@ -113,7 +138,6 @@ export class FileMetadataSettingTab extends PluginSettingTab {
         .onChange(async v => {
           this.plugin.settings.showStatistics = v;
           await this.save();
-          // Refresh to show/hide child settings
           this.display();
         }));
 
@@ -150,7 +174,7 @@ export class FileMetadataSettingTab extends PluginSettingTab {
     const wppEnabled = statsEnabled && this.plugin.settings.showEstimatedPages;
     const wppSetting = new Setting(containerEl)
       .setName('Words per page')
-      .setDesc('Number of words per page used to calculate estimated page count. Default: 300.')
+      .setDesc('Number of words used to calculate one estimated page. Default: 300.')
       .addText(t => t
         .setPlaceholder('300')
         .setValue(String(this.plugin.settings.wordsPerPage))
@@ -162,6 +186,58 @@ export class FileMetadataSettingTab extends PluginSettingTab {
           }
         }));
     if (!wppEnabled) wppSetting.setDisabled(true);
+
+    const rtSetting = new Setting(containerEl)
+      .setName('Show reading time')
+      .setDesc('Estimated reading time based on word count.')
+      .addToggle(t => t
+        .setValue(this.plugin.settings.showReadingTime)
+        .onChange(async v => {
+          this.plugin.settings.showReadingTime = v;
+          await this.save();
+          this.display();
+        }));
+    if (!statsEnabled) rtSetting.setDisabled(true);
+
+    const rtWpmEnabled = statsEnabled && this.plugin.settings.showReadingTime;
+    const rtWpmSetting = new Setting(containerEl)
+      .setName('Reading speed (wpm)')
+      .setDesc('Words per minute used for reading time estimate. Default: 200.')
+      .addText(t => t
+        .setPlaceholder('200')
+        .setValue(String(this.plugin.settings.readingWpm))
+        .onChange(async v => {
+          const n = parseInt(v, 10);
+          if (!isNaN(n) && n > 0) {
+            this.plugin.settings.readingWpm = n;
+            await this.save();
+          }
+        }));
+    if (!rtWpmEnabled) rtWpmSetting.setDisabled(true);
+
+    const readabilitySetting = new Setting(containerEl)
+      .setName('Show readability score')
+      .setDesc('Flesch reading ease score (0–100). Higher means easier to read.')
+      .addToggle(t => t
+        .setValue(this.plugin.settings.showReadability)
+        .onChange(async v => { this.plugin.settings.showReadability = v; await this.save(); }));
+    if (!statsEnabled) readabilitySetting.setDisabled(true);
+
+    const linksSetting = new Setting(containerEl)
+      .setName('Show link counts')
+      .setDesc('Count of internal ([[wikilinks]]) and external links.')
+      .addToggle(t => t
+        .setValue(this.plugin.settings.showLinks)
+        .onChange(async v => { this.plugin.settings.showLinks = v; await this.save(); }));
+    if (!statsEnabled) linksSetting.setDisabled(true);
+
+    const codeBlocksSetting = new Setting(containerEl)
+      .setName('Show code block count')
+      .setDesc('Number of fenced code blocks in the document.')
+      .addToggle(t => t
+        .setValue(this.plugin.settings.showCodeBlocks)
+        .onChange(async v => { this.plugin.settings.showCodeBlocks = v; await this.save(); }));
+    if (!statsEnabled) codeBlocksSetting.setDisabled(true);
 
     // ── Outline ───────────────────────────────────────────────────────────────
 

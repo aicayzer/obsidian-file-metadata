@@ -8,6 +8,8 @@ import {
 
 export default class FileMetadataPlugin extends Plugin {
   settings!: FileMetadataSettings;
+  /** Per-session collapsed state for panel sections (not persisted). */
+  collapsedSections: Record<string, boolean> = {};
   private refreshTimer: number | null = null;
 
   async onload(): Promise<void> {

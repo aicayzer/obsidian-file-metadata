@@ -1,12 +1,18 @@
-import { HeadingCache, ItemView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
+import { HeadingCache, ItemView, Menu, Notice, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
 import exifr from 'exifr';
 import type FileMetadataPlugin from './main';
 import {
   countCharacters,
+  countCodeBlocks,
+  countExternalLinks,
+  countInternalLinks,
   countParagraphs,
   countSentences,
   countWords,
   estimatePages,
+  estimateReadingTime,
+  fleschLabel,
+  fleschReadingEase,
 } from './stats';
 
 export const VIEW_TYPE_FILE_METADATA = 'file-metadata';
@@ -21,14 +27,32 @@ const TEXT_EXTENSIONS = new Set([
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function formatDate(ts: number): string {
-  return new Date(ts).toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+function formatDate(ts: number, format: 'short' | 'long' | 'relative'): string {
+  const d = new Date(ts);
+  if (format === 'relative') return formatRelativeDate(d);
+  if (format === 'long') {
+    return d.toLocaleString('en-GB', {
+      weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  }
+  // 'short'
+  return d.toLocaleString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
   });
+}
+
+function formatRelativeDate(d: Date): string {
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function formatSize(bytes: number): string {
@@ -47,6 +71,14 @@ function formatColorSpace(cs: unknown): string | null {
   if (cs === 2 || cs === 'uncalibrated' || cs === 'Uncalibrated') return 'Uncalibrated';
   if (typeof cs === 'string' && cs.trim()) return cs.trim();
   return null;
+}
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+interface Row {
+  label: string;
+  value: string;
+  copyValue?: string;
 }
 
 // ── View ───────────────────────────────────────────────────────────────────
@@ -83,7 +115,7 @@ export class FileMetadataView extends ItemView {
     const s = this.plugin.settings;
 
     // ── File section ───────────────────────────────────────────────────────
-    const fileRows: { label: string; value: string; copyValue?: string }[] = [];
+    const fileRows: Row[] = [];
     if (s.showFileName) {
       fileRows.push({ label: 'File name', value: file.name, copyValue: file.path });
     }
@@ -94,10 +126,10 @@ export class FileMetadataView extends ItemView {
       fileRows.push({ label: 'Folder', value: file.parent?.path || '/' });
     }
     if (s.showCreated) {
-      fileRows.push({ label: 'Created', value: formatDate(file.stat.ctime) });
+      fileRows.push({ label: 'Created', value: formatDate(file.stat.ctime, s.dateFormat) });
     }
     if (s.showModified) {
-      fileRows.push({ label: 'Modified', value: formatDate(file.stat.mtime) });
+      fileRows.push({ label: 'Modified', value: formatDate(file.stat.mtime, s.dateFormat) });
     }
     if (s.showSize) {
       fileRows.push({ label: 'Size', value: formatSize(file.stat.size) });
@@ -122,15 +154,27 @@ export class FileMetadataView extends ItemView {
       let raw = '';
       try { raw = await this.app.vault.read(file); } catch { return; }
 
-      const words      = countWords(raw);
-      const chars      = countCharacters(raw);
-      const statsRows: { label: string; value: string }[] = [
+      const words = countWords(raw);
+      const chars = countCharacters(raw);
+      const statsRows: Row[] = [
         { label: 'Words',      value: fmt(words) },
-        { label: 'Characters', value: fmt(chars)  },
+        { label: 'Characters', value: fmt(chars) },
       ];
-      if (s.showSentences)      statsRows.push({ label: 'Sentences',  value: fmt(countSentences(raw))  });
-      if (s.showParagraphs)     statsRows.push({ label: 'Paragraphs', value: fmt(countParagraphs(raw)) });
-      if (s.showEstimatedPages) statsRows.push({ label: 'Est. pages', value: fmt(estimatePages(words, s.wordsPerPage)) });
+      if (s.showSentences)      statsRows.push({ label: 'Sentences',    value: fmt(countSentences(raw)) });
+      if (s.showParagraphs)     statsRows.push({ label: 'Paragraphs',   value: fmt(countParagraphs(raw)) });
+      if (s.showEstimatedPages) statsRows.push({ label: 'Est. pages',   value: fmt(estimatePages(words, s.wordsPerPage)) });
+      if (s.showReadingTime)    statsRows.push({ label: 'Reading time', value: estimateReadingTime(words, s.readingWpm) });
+      if (s.showReadability) {
+        const score = fleschReadingEase(raw);
+        statsRows.push({ label: 'Readability', value: `${score} — ${fleschLabel(score)}` });
+      }
+      if (s.showLinks) {
+        statsRows.push({ label: 'Links (int)', value: fmt(countInternalLinks(raw)) });
+        statsRows.push({ label: 'Links (ext)', value: fmt(countExternalLinks(raw)) });
+      }
+      if (s.showCodeBlocks) {
+        statsRows.push({ label: 'Code blocks', value: fmt(countCodeBlocks(raw)) });
+      }
 
       this.renderDivider(pane);
       this.renderSection(pane, 'Statistics', statsRows);
@@ -150,35 +194,71 @@ export class FileMetadataView extends ItemView {
 
   /**
    * Render a titled section using Obsidian's native tree-item DOM structure.
-   * Each row is optionally clickable (copies value to clipboard).
+   * Sections are collapsible — clicking the header toggles visibility.
+   * Each data row is optionally clickable (copies value) and has a context menu.
    */
-  private renderSection(
-    parent: HTMLElement,
-    title: string,
-    rows: { label: string; value: string; copyValue?: string }[]
-  ): void {
-    // Header
-    parent
-      .createDiv({ cls: 'tree-item fm-header' })
-      .createDiv({ cls: 'tree-item-self' })
-      .createDiv({ cls: 'tree-item-inner', text: title });
+  private renderSection(parent: HTMLElement, title: string, rows: Row[]): void {
+    const isCollapsed = this.plugin.collapsedSections[title] ?? false;
 
-    // Rows
+    // ── Header ──────────────────────────────────────────────────────────
+    const header = parent.createDiv({ cls: 'tree-item fm-header' });
+    const headerSelf = header.createDiv({ cls: 'tree-item-self is-clickable' });
+
+    // Collapse chevron
+    const icon = headerSelf.createSpan({ cls: 'tree-item-icon collapse-icon' });
+    setIcon(icon, 'right-triangle');
+    if (!isCollapsed) icon.addClass('is-open');
+
+    headerSelf.createDiv({ cls: 'tree-item-inner', text: title });
+
+    headerSelf.addEventListener('click', () => {
+      this.plugin.collapsedSections[title] = !isCollapsed;
+      this.render();
+    });
+
+    if (isCollapsed) return;
+
+    // ── Rows ────────────────────────────────────────────────────────────
     for (const { label, value, copyValue } of rows) {
       const row  = parent.createDiv({ cls: 'tree-item' });
-      const self = row.createDiv({ cls: 'tree-item-self' + (this.plugin.settings.clickToCopy ? ' is-clickable' : '') });
+      const self = row.createDiv({
+        cls: 'tree-item-self' + (this.plugin.settings.clickToCopy ? ' is-clickable' : ''),
+      });
       self.createDiv({ cls: 'tree-item-inner', text: label });
       const flair = self.createDiv({ cls: 'tree-item-flair-outer' })
                         .createSpan({ cls: 'tree-item-flair', text: value });
       flair.title = value;
 
+      const textToCopy = copyValue ?? value;
+
+      // Left-click: copy value
       if (this.plugin.settings.clickToCopy) {
-        const textToCopy = copyValue ?? value;
         self.addEventListener('click', async () => {
           await navigator.clipboard.writeText(textToCopy);
           new Notice(`Copied ${label.toLowerCase()}`);
         });
       }
+
+      // Right-click: context menu
+      self.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const menu = new Menu();
+        menu.addItem(item => item
+          .setTitle('Copy value')
+          .setIcon('clipboard-copy')
+          .onClick(async () => {
+            await navigator.clipboard.writeText(textToCopy);
+            new Notice(`Copied ${label.toLowerCase()}`);
+          }));
+        menu.addItem(item => item
+          .setTitle(`Copy "${label}: ${value}"`)
+          .setIcon('clipboard-list')
+          .onClick(async () => {
+            await navigator.clipboard.writeText(`${label}: ${value}`);
+            new Notice('Copied');
+          }));
+        menu.showAtMouseEvent(e);
+      });
     }
   }
 
@@ -187,11 +267,24 @@ export class FileMetadataView extends ItemView {
   }
 
   private renderOutline(parent: HTMLElement, headings: HeadingCache[]): void {
+    const isCollapsed = this.plugin.collapsedSections['Outline'] ?? false;
+
     // Header
-    parent
-      .createDiv({ cls: 'tree-item fm-header' })
-      .createDiv({ cls: 'tree-item-self' })
-      .createDiv({ cls: 'tree-item-inner', text: 'Outline' });
+    const header = parent.createDiv({ cls: 'tree-item fm-header' });
+    const headerSelf = header.createDiv({ cls: 'tree-item-self is-clickable' });
+
+    const icon = headerSelf.createSpan({ cls: 'tree-item-icon collapse-icon' });
+    setIcon(icon, 'right-triangle');
+    if (!isCollapsed) icon.addClass('is-open');
+
+    headerSelf.createDiv({ cls: 'tree-item-inner', text: 'Outline' });
+
+    headerSelf.addEventListener('click', () => {
+      this.plugin.collapsedSections['Outline'] = !isCollapsed;
+      this.render();
+    });
+
+    if (isCollapsed) return;
 
     const outline = parent.createDiv({ cls: 'fm-outline' });
     const minLevel = Math.min(...headings.map(h => h.level));
@@ -200,7 +293,6 @@ export class FileMetadataView extends ItemView {
       const indent = (heading.level - minLevel) * 12;
       const row  = outline.createDiv({ cls: 'tree-item' });
       const self = row.createDiv({ cls: 'tree-item-self is-clickable' });
-      // Logical property (supports RTL), offset from base padding
       self.style.paddingInlineStart = `calc(var(--size-4-2) + ${indent}px)`;
       self.createDiv({ cls: 'tree-item-inner', text: heading.heading });
       self.addEventListener('click', () => this.navigateTo(heading));
@@ -228,8 +320,8 @@ export class FileMetadataView extends ItemView {
   private async loadImageMetadata(
     file: TFile,
     ext: string
-  ): Promise<{ label: string; value: string }[]> {
-    const rows: { label: string; value: string }[] = [];
+  ): Promise<Row[]> {
+    const rows: Row[] = [];
 
     // --- Attempt EXIF read ---
     let exifData: Record<string, unknown> | null = null;
@@ -271,7 +363,6 @@ export class FileMetadataView extends ItemView {
     const make  = (exifData?.['Make']  as string | undefined)?.trim();
     const model = (exifData?.['Model'] as string | undefined)?.trim();
     if (make || model) {
-      // Avoid duplicating brand name when model already starts with it
       const camera = (make && model && !model.startsWith(make))
         ? `${make} ${model}`
         : (model ?? make ?? '');
