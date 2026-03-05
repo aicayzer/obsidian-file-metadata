@@ -25,16 +25,16 @@
 .fm-divider {
   height: 1px;
   background: var(--background-modifier-border);
-  margin: 8px 16px 0;
+  margin: 8px 16px 4px;
   opacity: 0.5;
 }
 
 /* ── Section headers (fm-header) ──────────────────── */
 
 .fm-header .tree-item-self {
-  color: var(--nav-heading-color);
+  color: var(--text-muted);
   font-weight: var(--nav-heading-weight);
-  padding-block: 2px;
+  padding-block: 4px 2px;
 }
 
 /* ── Data rows (inside fm-pane) ───────────────────── */

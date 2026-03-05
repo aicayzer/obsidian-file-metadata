@@ -3,6 +3,8 @@ import type FileMetadataPlugin from './main';
 
 export interface FileMetadataSettings {
   // ── File section fields ───────────────────────────
+  showFileName: boolean;
+  showFilePath: boolean;
   showFolder:   boolean;
   showCreated:  boolean;
   showModified: boolean;
@@ -23,6 +25,8 @@ export interface FileMetadataSettings {
 }
 
 export const DEFAULT_SETTINGS: FileMetadataSettings = {
+  showFileName: true,
+  showFilePath: false,
   showFolder:   true,
   showCreated:  true,
   showModified: true,
@@ -54,6 +58,20 @@ export class FileMetadataSettingTab extends PluginSettingTab {
     // ── File section ─────────────────────────────────────────────────────────
 
     containerEl.createEl('h3', { text: 'File section' });
+
+    new Setting(containerEl)
+      .setName('Show file name')
+      .setDesc('Display the file name. Clicking copies the full vault path.')
+      .addToggle(t => t
+        .setValue(this.plugin.settings.showFileName)
+        .onChange(async v => { this.plugin.settings.showFileName = v; await this.save(); }));
+
+    new Setting(containerEl)
+      .setName('Show file path')
+      .setDesc('Display the full vault path to the file.')
+      .addToggle(t => t
+        .setValue(this.plugin.settings.showFilePath)
+        .onChange(async v => { this.plugin.settings.showFilePath = v; await this.save(); }));
 
     new Setting(containerEl)
       .setName('Show folder')

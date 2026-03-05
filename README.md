@@ -1,83 +1,75 @@
 # File Metadata
 
-A sidebar panel for [Obsidian](https://obsidian.md) that shows file metadata, text statistics, and a document outline — all in one place, without touching your frontmatter.
-
----
+A sidebar panel for [Obsidian](https://obsidian.md) that shows file info, text statistics, and a document outline — without touching your frontmatter.
 
 ## Features
 
-- **File info** — file name, folder, created date/time, modified date/time, file size
-- **Text statistics** — word count, character count, sentence count, paragraph count, estimated pages
-- **Document outline** — clickable heading list indented by level; click to jump to any heading
-- **Image info** — dimensions, color space, and camera make/model (where EXIF data is present)
-- **Click to copy** — click any row to copy its value to the clipboard
-- **Fully configurable** — toggle each section and individual fields on or off in Settings
-
----
+- **File info** — name, full path, folder, created/modified dates, size
+- **Text statistics** — words, characters, sentences, paragraphs, estimated pages
+- **Document outline** — clickable headings indented by level
+- **Image metadata** — dimensions, colour space, camera (EXIF via [exifr](https://github.com/MikeKovarik/exifr))
+- **Click to copy** — click any row to copy its value; file name copies the full vault path
+- **Configurable** — toggle individual fields and sections on or off in Settings
 
 ## Installation
 
-### Community plugins (once published)
-1. Open Obsidian → **Settings → Community plugins**
-2. Click **Browse** and search for **File Metadata**
-3. Click **Install**, then **Enable**
+### Community plugins
 
-### Manual install
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/aicayzer/obsidian-file-metadata/releases/latest)
-2. Create the folder `.obsidian/plugins/file-metadata/` inside your vault
-3. Copy the three files into that folder
-4. Open Obsidian → **Settings → Community plugins** → enable **File Metadata**
+1. **Settings → Community plugins → Browse** → search **File Metadata**
+2. **Install** → **Enable**
 
----
+### Manual
+
+1. Grab `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/aicayzer/obsidian-file-metadata/releases/latest)
+2. Drop them into `.obsidian/plugins/file-metadata/` inside your vault
+3. **Settings → Community plugins** → enable **File Metadata**
 
 ## Usage
 
-Click the **ⓘ** icon in the left ribbon, or run **File Metadata: Open File Metadata panel** from the command palette (`Ctrl/Cmd + P`).
+Click the **ⓘ** icon in the left ribbon, or run **File Metadata: Open File Metadata panel** from the command palette.
 
-The panel opens in the right sidebar and updates automatically as you switch files or edit.
-
----
+The panel lives in the right sidebar and updates as you switch files or edit.
 
 ## Settings
 
-Open **Settings → File Metadata** to configure the panel.
+**Settings → File Metadata**
 
-### File section
+### File
+
 | Setting | Default | Description |
 |---|---|---|
-| Show folder | On | Display the folder containing the current file |
-| Show created date | On | Display the file creation date and time |
-| Show modified date | On | Display the last modification date and time |
-| Show file size | On | Display the file size on disk |
+| Show file name | On | Display the file name (click copies full path) |
+| Show file path | Off | Display the full vault path |
+| Show folder | On | Display the parent folder |
+| Show created date | On | Creation date and time |
+| Show modified date | On | Last modified date and time |
+| Show file size | On | Size on disk |
 
 ### Statistics
+
 | Setting | Default | Description |
 |---|---|---|
-| Show Statistics section | On | Show or hide the entire Statistics section |
-| Show sentences | On | Include sentence count |
-| Show paragraphs | On | Include paragraph count |
-| Show estimated pages | On | Include estimated page count |
-| Words per page | 300 | Words per page used for the estimate |
+| Show Statistics section | On | Toggle the entire section |
+| Show sentences | On | Sentence count |
+| Show paragraphs | On | Paragraph count |
+| Show estimated pages | On | Estimated page count |
+| Words per page | 300 | Used for the page estimate |
 
 ### Outline
+
 | Setting | Default | Description |
 |---|---|---|
-| Show Outline section | On | Show or hide the clickable heading outline |
+| Show Outline section | On | Toggle the heading outline |
 
 ### Behaviour
+
 | Setting | Default | Description |
 |---|---|---|
-| Click row to copy value | On | Clicking any row copies its value to the clipboard |
-
----
+| Click to copy | On | Click any row to copy its value |
 
 ## Attribution
 
-The native sidebar look and feel is inspired by [Simple File Info](https://github.com/lukas-cap/obsidian-simple-file-info) by Lukas Capkovic, which demonstrated using Obsidian's built-in `tree-item` component for a seamless appearance.
-
-EXIF image metadata is powered by [exifr](https://github.com/MikeKovarik/exifr) by Mike Kovařík.
-
----
+Sidebar styling draws on the approach used by [Simple File Info](https://github.com/lukas-cap/obsidian-simple-file-info) (Lukas Capkovic), which uses Obsidian's built-in `tree-item` components. EXIF parsing is handled by [exifr](https://github.com/MikeKovarik/exifr) (Mike Kovařík).
 
 ## License
 

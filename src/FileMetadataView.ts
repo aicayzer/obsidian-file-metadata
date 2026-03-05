@@ -83,9 +83,13 @@ export class FileMetadataView extends ItemView {
     const s = this.plugin.settings;
 
     // ── File section ───────────────────────────────────────────────────────
-    const fileRows: { label: string; value: string }[] = [
-      { label: 'File name', value: file.name },
-    ];
+    const fileRows: { label: string; value: string; copyValue?: string }[] = [];
+    if (s.showFileName) {
+      fileRows.push({ label: 'File name', value: file.name, copyValue: file.path });
+    }
+    if (s.showFilePath) {
+      fileRows.push({ label: 'File path', value: file.path });
+    }
     if (s.showFolder) {
       fileRows.push({ label: 'Folder', value: file.parent?.path || '/' });
     }
@@ -151,7 +155,7 @@ export class FileMetadataView extends ItemView {
   private renderSection(
     parent: HTMLElement,
     title: string,
-    rows: { label: string; value: string }[]
+    rows: { label: string; value: string; copyValue?: string }[]
   ): void {
     // Header
     parent
@@ -160,7 +164,7 @@ export class FileMetadataView extends ItemView {
       .createDiv({ cls: 'tree-item-inner', text: title });
 
     // Rows
-    for (const { label, value } of rows) {
+    for (const { label, value, copyValue } of rows) {
       const row  = parent.createDiv({ cls: 'tree-item' });
       const self = row.createDiv({ cls: 'tree-item-self' + (this.plugin.settings.clickToCopy ? ' is-clickable' : '') });
       self.createDiv({ cls: 'tree-item-inner', text: label });
@@ -169,8 +173,9 @@ export class FileMetadataView extends ItemView {
       flair.title = value;
 
       if (this.plugin.settings.clickToCopy) {
+        const textToCopy = copyValue ?? value;
         self.addEventListener('click', async () => {
-          await navigator.clipboard.writeText(value);
+          await navigator.clipboard.writeText(textToCopy);
           new Notice(`Copied ${label.toLowerCase()}`);
         });
       }
