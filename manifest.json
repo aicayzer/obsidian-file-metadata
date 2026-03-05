@@ -5,6 +5,6 @@
   "minAppVersion": "1.4.0",
   "description": "Shows file metadata, text statistics, and document outline in the sidebar.",
   "author": "aicayzer",
-  "authorUrl": "",
+  "authorUrl": "https://github.com/aicayzer",
   "isDesktopOnly": false
 }

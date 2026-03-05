@@ -20,14 +20,14 @@ export function stripMarkdown(raw: string): string {
   text = text.replace(/!\[\[([^\]]*)\]\]/g, '');
 
   // 5. Standard markdown images — strip entirely
-  text = text.replace(/!\[([^\]]*)\]\([^\)]*\)/g, '');
+  text = text.replace(/!\[([^\]]*)\]\([^)]*\)/g, '');
 
   // 6. Wikilinks — keep display text: [[link|display]] → display, [[link]] → link
   text = text.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2');
   text = text.replace(/\[\[([^\]]+)\]\]/g, '$1');
 
   // 7. Markdown hyperlinks — keep display text
-  text = text.replace(/\[([^\]]*)\]\([^\)]*\)/g, '$1');
+  text = text.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
 
   // 8. HTML tags
   text = text.replace(/<[^>]+>/g, '');

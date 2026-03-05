@@ -1,4 +1,5 @@
-import { HeadingCache, ItemView, TFile, WorkspaceLeaf } from 'obsidian';
+import { HeadingCache, ItemView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
+import exifr from 'exifr';
 import type FileMetadataPlugin from './main';
 import {
   countCharacters,
@@ -11,7 +12,7 @@ import {
 export const VIEW_TYPE_FILE_METADATA = 'file-metadata';
 
 const IMAGE_EXTENSIONS = new Set([
-  'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif',
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif', 'heic', 'heif', 'tiff', 'tif',
 ]);
 
 const TEXT_EXTENSIONS = new Set([
@@ -40,6 +41,14 @@ function fmt(n: number): string {
   return n.toLocaleString('en-GB');
 }
 
+/** Normalise a ColorSpace number or string to a readable label. */
+function formatColorSpace(cs: unknown): string | null {
+  if (cs === 1 || cs === '1') return 'sRGB';
+  if (cs === 2 || cs === 'uncalibrated' || cs === 'Uncalibrated') return 'Uncalibrated';
+  if (typeof cs === 'string' && cs.trim()) return cs.trim();
+  return null;
+}
+
 // ── View ───────────────────────────────────────────────────────────────────
 
 export class FileMetadataView extends ItemView {
@@ -50,24 +59,15 @@ export class FileMetadataView extends ItemView {
     this.plugin = plugin;
   }
 
-  getViewType(): string {
-    return VIEW_TYPE_FILE_METADATA;
-  }
-
-  getDisplayText(): string {
-    return 'File Metadata';
-  }
-
-  getIcon(): string {
-    return 'info';
-  }
+  getViewType(): string { return VIEW_TYPE_FILE_METADATA; }
+  getDisplayText(): string { return 'File Metadata'; }
+  getIcon(): string { return 'info'; }
 
   async onOpen(): Promise<void> {
     await this.render();
   }
 
   async render(): Promise<void> {
-    // children[1] is the content pane; children[0] is the view header
     const root = this.containerEl.children[1] as HTMLElement;
     root.empty();
     root.addClass('fm-view');
@@ -78,80 +78,102 @@ export class FileMetadataView extends ItemView {
       return;
     }
 
-    const container = root.createDiv({ cls: 'fm-container' });
+    const pane = root.createDiv({ cls: 'fm-pane fm-container' });
     const ext = file.extension.toLowerCase();
+    const s = this.plugin.settings;
 
     // ── File section ───────────────────────────────────────────────────────
-    this.renderSection(container, 'File', [
+    const fileRows: { label: string; value: string }[] = [
       { label: 'File name', value: file.name },
-      { label: 'Vault path', value: file.path },
-      { label: 'Created',   value: formatDate(file.stat.ctime) },
-      { label: 'Modified',  value: formatDate(file.stat.mtime) },
-      { label: 'Size',      value: formatSize(file.stat.size)  },
-    ]);
+    ];
+    if (s.showFolder) {
+      fileRows.push({ label: 'Folder', value: file.parent?.path || '/' });
+    }
+    if (s.showCreated) {
+      fileRows.push({ label: 'Created', value: formatDate(file.stat.ctime) });
+    }
+    if (s.showModified) {
+      fileRows.push({ label: 'Modified', value: formatDate(file.stat.mtime) });
+    }
+    if (s.showSize) {
+      fileRows.push({ label: 'Size', value: formatSize(file.stat.size) });
+    }
+
+    this.renderSection(pane, 'File', fileRows);
 
     // ── Image branch ───────────────────────────────────────────────────────
     if (IMAGE_EXTENSIONS.has(ext)) {
-      const dims = await this.loadImageDimensions(file);
-      if (dims) {
-        this.renderDivider(container);
-        this.renderSection(container, 'Image', [
-          { label: 'Dimensions', value: `${dims.width} × ${dims.height} px` },
-        ]);
+      const meta = await this.loadImageMetadata(file, ext);
+      if (meta.length > 0) {
+        this.renderDivider(pane);
+        this.renderSection(pane, 'Image', meta);
       }
       return;
     }
 
-    // ── Text statistics (markdown and plain text only) ─────────────────────
+    // ── Text statistics ────────────────────────────────────────────────────
     if (!TEXT_EXTENSIONS.has(ext)) return;
 
-    let raw = '';
-    try {
-      raw = await this.app.vault.read(file);
-    } catch {
-      return;
+    if (s.showStatistics) {
+      let raw = '';
+      try { raw = await this.app.vault.read(file); } catch { return; }
+
+      const words      = countWords(raw);
+      const chars      = countCharacters(raw);
+      const statsRows: { label: string; value: string }[] = [
+        { label: 'Words',      value: fmt(words) },
+        { label: 'Characters', value: fmt(chars)  },
+      ];
+      if (s.showSentences)      statsRows.push({ label: 'Sentences',  value: fmt(countSentences(raw))  });
+      if (s.showParagraphs)     statsRows.push({ label: 'Paragraphs', value: fmt(countParagraphs(raw)) });
+      if (s.showEstimatedPages) statsRows.push({ label: 'Est. pages', value: fmt(estimatePages(words, s.wordsPerPage)) });
+
+      this.renderDivider(pane);
+      this.renderSection(pane, 'Statistics', statsRows);
     }
 
-    const words      = countWords(raw);
-    const chars      = countCharacters(raw);
-    const sentences  = countSentences(raw);
-    const paragraphs = countParagraphs(raw);
-    const pages      = estimatePages(words, this.plugin.settings.wordsPerPage);
-
-    this.renderDivider(container);
-    this.renderSection(container, 'Statistics', [
-      { label: 'Words',      value: fmt(words)      },
-      { label: 'Characters', value: fmt(chars)      },
-      { label: 'Sentences',  value: fmt(sentences)  },
-      { label: 'Paragraphs', value: fmt(paragraphs) },
-      { label: 'Est. pages', value: fmt(pages)      },
-    ]);
-
     // ── Outline (markdown only) ────────────────────────────────────────────
-    if (ext === 'md') {
-      const cache    = this.app.metadataCache.getFileCache(file);
-      const headings = cache?.headings;
+    if (s.showOutline && ext === 'md') {
+      const headings = this.app.metadataCache.getFileCache(file)?.headings;
       if (headings && headings.length > 0) {
-        this.renderDivider(container);
-        this.renderOutline(container, headings);
+        this.renderDivider(pane);
+        this.renderOutline(pane, headings);
       }
     }
   }
 
   // ── Private helpers ────────────────────────────────────────────────────
 
+  /**
+   * Render a titled section using Obsidian's native tree-item DOM structure.
+   * Each row is optionally clickable (copies value to clipboard).
+   */
   private renderSection(
     parent: HTMLElement,
     title: string,
     rows: { label: string; value: string }[]
   ): void {
-    const section = parent.createDiv({ cls: 'fm-section' });
-    section.createDiv({ cls: 'fm-section-header', text: title });
+    // Header
+    parent
+      .createDiv({ cls: 'tree-item fm-header' })
+      .createDiv({ cls: 'tree-item-self' })
+      .createDiv({ cls: 'tree-item-inner', text: title });
 
+    // Rows
     for (const { label, value } of rows) {
-      const row = section.createDiv({ cls: 'fm-row' });
-      row.createSpan({ cls: 'fm-label', text: label });
-      row.createSpan({ cls: 'fm-value', text: value });
+      const row  = parent.createDiv({ cls: 'tree-item' });
+      const self = row.createDiv({ cls: 'tree-item-self' + (this.plugin.settings.clickToCopy ? ' is-clickable' : '') });
+      self.createDiv({ cls: 'tree-item-inner', text: label });
+      const flair = self.createDiv({ cls: 'tree-item-flair-outer' })
+                        .createSpan({ cls: 'tree-item-flair', text: value });
+      flair.title = value;
+
+      if (this.plugin.settings.clickToCopy) {
+        self.addEventListener('click', async () => {
+          await navigator.clipboard.writeText(value);
+          new Notice(`Copied ${label.toLowerCase()}`);
+        });
+      }
     }
   }
 
@@ -160,29 +182,31 @@ export class FileMetadataView extends ItemView {
   }
 
   private renderOutline(parent: HTMLElement, headings: HeadingCache[]): void {
-    const section = parent.createDiv({ cls: 'fm-section' });
-    section.createDiv({ cls: 'fm-section-header', text: 'Outline' });
+    // Header
+    parent
+      .createDiv({ cls: 'tree-item fm-header' })
+      .createDiv({ cls: 'tree-item-self' })
+      .createDiv({ cls: 'tree-item-inner', text: 'Outline' });
 
+    const outline = parent.createDiv({ cls: 'fm-outline' });
     const minLevel = Math.min(...headings.map(h => h.level));
 
     for (const heading of headings) {
       const indent = (heading.level - minLevel) * 12;
-      const item = section.createDiv({ cls: 'fm-outline-item' });
-      item.style.paddingLeft = `${indent}px`;
-      item.setText(heading.heading);
-      item.addEventListener('click', () => this.navigateTo(heading));
+      const row  = outline.createDiv({ cls: 'tree-item' });
+      const self = row.createDiv({ cls: 'tree-item-self is-clickable' });
+      // Logical property (supports RTL), offset from base padding
+      self.style.paddingInlineStart = `calc(var(--size-4-2) + ${indent}px)`;
+      self.createDiv({ cls: 'tree-item-inner', text: heading.heading });
+      self.addEventListener('click', () => this.navigateTo(heading));
     }
   }
 
   private navigateTo(heading: HeadingCache): void {
-    const file = this.app.workspace.getActiveFile();
-    if (!file) return;
-
     const leaf = this.app.workspace.getMostRecentLeaf();
     if (!leaf) return;
-
     const line = heading.position.start.line;
-    // @ts-ignore — editor is available on MarkdownView but not typed on View
+    // @ts-ignore — editor is typed on MarkdownView but not the base View
     const editor = leaf.view?.editor;
     if (editor) {
       editor.setCursor({ line, ch: 0 });
@@ -191,15 +215,73 @@ export class FileMetadataView extends ItemView {
     }
   }
 
-  private loadImageDimensions(
-    file: TFile
-  ): Promise<{ width: number; height: number } | null> {
+  /**
+   * Load image metadata.
+   * Primary: exifr for EXIF-bearing formats (JPEG, PNG, WebP, AVIF, HEIC, TIFF).
+   * Dimensions fallback: HTML Image element (works for all formats including SVG/BMP).
+   */
+  private async loadImageMetadata(
+    file: TFile,
+    ext: string
+  ): Promise<{ label: string; value: string }[]> {
+    const rows: { label: string; value: string }[] = [];
+
+    // --- Attempt EXIF read ---
+    let exifData: Record<string, unknown> | null = null;
+    if (ext !== 'svg' && ext !== 'bmp' && ext !== 'gif') {
+      try {
+        const data = await this.app.vault.readBinary(file);
+        exifData = await exifr.parse(data as unknown as Uint8Array, {
+          tiff: true,
+          xmp:  false,
+          icc:  false,
+          iptc: false,
+        }) as Record<string, unknown> | null;
+      } catch {
+        // continue without EXIF
+      }
+    }
+
+    // --- Dimensions ---
+    let width:  number | undefined = exifData?.['ImageWidth']  as number | undefined
+                                  ?? exifData?.['ExifImageWidth']  as number | undefined;
+    let height: number | undefined = exifData?.['ImageHeight'] as number | undefined
+                                  ?? exifData?.['ExifImageHeight'] as number | undefined;
+
+    // Fallback to native Image element if EXIF didn't give us dimensions
+    if (!width || !height) {
+      const dims = await this.loadDimensions(file);
+      if (dims) { width = dims.width; height = dims.height; }
+    }
+
+    if (width && height) {
+      rows.push({ label: 'Dimensions', value: `${width} × ${height} px` });
+    }
+
+    // --- Color space ---
+    const cs = formatColorSpace(exifData?.['ColorSpace']);
+    if (cs) rows.push({ label: 'Color space', value: cs });
+
+    // --- Camera make / model ---
+    const make  = (exifData?.['Make']  as string | undefined)?.trim();
+    const model = (exifData?.['Model'] as string | undefined)?.trim();
+    if (make || model) {
+      // Avoid duplicating brand name when model already starts with it
+      const camera = (make && model && !model.startsWith(make))
+        ? `${make} ${model}`
+        : (model ?? make ?? '');
+      if (camera) rows.push({ label: 'Camera', value: camera });
+    }
+
+    return rows;
+  }
+
+  private loadDimensions(file: TFile): Promise<{ width: number; height: number } | null> {
     return new Promise((resolve) => {
-      const src = this.app.vault.getResourcePath(file);
       const img = new Image();
       img.onload  = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
       img.onerror = () => resolve(null);
-      img.src = src;
+      img.src = this.app.vault.getResourcePath(file);
     });
   }
 }
