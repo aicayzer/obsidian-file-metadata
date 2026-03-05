@@ -1,0 +1,10 @@
+{
+  "id": "file-metadata",
+  "name": "File Metadata",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "Shows file metadata, text statistics, and document outline in the sidebar.",
+  "author": "aicayzer",
+  "authorUrl": "",
+  "isDesktopOnly": false
+}
