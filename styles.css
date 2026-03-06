@@ -13,8 +13,8 @@ settings:
     title: Section header color
     type: variable-themed-color
     format: hex
-    default-light: '#383a42'
-    default-dark: '#dcddde'
+    default-light: '#1a1a1a'
+    default-dark: '#e8e8e8'
   -
     id: fm-label-color
     title: Row label color
@@ -27,8 +27,15 @@ settings:
     title: Row value color
     type: variable-themed-color
     format: hex
-    default-light: '#1f2328'
-    default-dark: '#dcddde'
+    default-light: '#383a42'
+    default-dark: '#b8b8b8'
+  -
+    id: fm-outline-color
+    title: Outline item color
+    type: variable-themed-color
+    format: hex
+    default-light: '#555555'
+    default-dark: '#999999'
   -
     id: fm-heading-layout
     title: Layout
@@ -110,6 +117,33 @@ settings:
   transform: rotate(90deg);
 }
 
+/* ── Header action button (e.g. copy path) ────────── */
+
+.fm-header-action {
+  display: flex;
+  align-items: center;
+  margin-inline-start: auto;
+  padding: 2px;
+  border-radius: var(--radius-s);
+  color: var(--text-faint);
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.fm-header .tree-item-self:hover .fm-header-action {
+  opacity: 1;
+}
+
+.fm-header-action:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.fm-header-action svg {
+  width: 14px;
+  height: 14px;
+}
+
 /* ── Data rows (inside fm-pane) ───────────────────── */
 
 .fm-pane .tree-item-self {
@@ -152,9 +186,9 @@ settings:
   flex: 1 1 auto;
 }
 
-/* Inherit muted colour; transition on hover */
+/* Outline colour: darker than labels, softer than values */
 .fm-outline .tree-item-self .tree-item-inner {
-  color: var(--fm-label-color, var(--text-muted));
+  color: var(--fm-outline-color, var(--text-muted));
   transition: color 0.1s ease;
 }
 

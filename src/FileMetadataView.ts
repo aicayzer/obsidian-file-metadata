@@ -81,6 +81,12 @@ interface Row {
   copyValue?: string;
 }
 
+interface HeaderAction {
+  icon: string;
+  title: string;
+  onClick: () => void;
+}
+
 // ── View ───────────────────────────────────────────────────────────────────
 
 export class FileMetadataView extends ItemView {
@@ -117,7 +123,7 @@ export class FileMetadataView extends ItemView {
     // ── File section ───────────────────────────────────────────────────────
     const fileRows: Row[] = [];
     if (s.showFileName) {
-      fileRows.push({ label: 'File name', value: file.name, copyValue: file.path });
+      fileRows.push({ label: 'Name', value: file.name, copyValue: file.path });
     }
     if (s.showFilePath) {
       fileRows.push({ label: 'File path', value: file.path });
@@ -135,7 +141,16 @@ export class FileMetadataView extends ItemView {
       fileRows.push({ label: 'Size', value: formatSize(file.stat.size) });
     }
 
-    this.renderSection(pane, 'File', fileRows);
+    const fullPath = this.getFullPath(file);
+    this.renderSection(pane, 'File', fileRows, {
+      icon: 'clipboard-copy',
+      title: 'Copy file path',
+      onClick: () => {
+        void navigator.clipboard.writeText(fullPath).then(() => {
+          new Notice('Copied file path');
+        });
+      },
+    });
 
     // ── Image branch ───────────────────────────────────────────────────────
     if (IMAGE_EXTENSIONS.has(ext)) {
@@ -197,7 +212,7 @@ export class FileMetadataView extends ItemView {
    * Sections are collapsible — clicking the header toggles visibility.
    * Each data row is optionally clickable (copies value) and has a context menu.
    */
-  private renderSection(parent: HTMLElement, title: string, rows: Row[]): void {
+  private renderSection(parent: HTMLElement, title: string, rows: Row[], headerAction?: HeaderAction): void {
     const isCollapsed = this.plugin.collapsedSections[title] ?? false;
 
     // ── Header ──────────────────────────────────────────────────────────
@@ -210,6 +225,18 @@ export class FileMetadataView extends ItemView {
     if (!isCollapsed) icon.addClass('is-open');
 
     headerSelf.createDiv({ cls: 'tree-item-inner', text: title });
+
+    // Optional action button (e.g. copy path)
+    if (headerAction) {
+      const btn = headerSelf.createSpan({ cls: 'fm-header-action clickable-icon' });
+      setIcon(btn, headerAction.icon);
+      btn.ariaLabel = headerAction.title;
+      btn.setAttribute('data-tooltip-position', 'top');
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        headerAction.onClick();
+      });
+    }
 
     headerSelf.addEventListener('click', () => {
       this.plugin.collapsedSections[title] = !isCollapsed;
@@ -313,6 +340,15 @@ export class FileMetadataView extends ItemView {
       editor.scrollIntoView({ from: { line, ch: 0 }, to: { line, ch: 0 } }, true);
       leaf.view.containerEl.focus();
     }
+  }
+
+  /** Return the full filesystem path (desktop) or vault-relative path (mobile). */
+  private getFullPath(file: TFile): string {
+    const adapter = this.app.vault.adapter;
+    if ('basePath' in adapter && typeof (adapter as Record<string, unknown>)['basePath'] === 'string') {
+      return `${(adapter as Record<string, unknown>)['basePath'] as string}/${file.path}`;
+    }
+    return file.path;
   }
 
   /**
