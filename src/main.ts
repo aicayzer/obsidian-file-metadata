@@ -22,13 +22,15 @@ export default class FileMetadataPlugin extends Plugin {
     );
 
     // Ribbon icon
-    this.addRibbonIcon('info', 'File Metadata', () => this.activateView());
+    this.addRibbonIcon('info', 'File metadata', () => {
+      void this.activateView();
+    });
 
     // Command palette entry
     this.addCommand({
-      id: 'open-file-metadata',
-      name: 'Open File Metadata panel',
-      callback: () => this.activateView(),
+      id: 'open-panel',
+      name: 'Open panel',
+      callback: () => { void this.activateView(); },
     });
 
     // Settings tab
@@ -70,7 +72,11 @@ export default class FileMetadataPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign(
+      {},
+      DEFAULT_SETTINGS,
+      await this.loadData() as Partial<FileMetadataSettings> | null,
+    );
   }
 
   async saveSettings(): Promise<void> {
@@ -83,7 +89,7 @@ export default class FileMetadataPlugin extends Plugin {
       .getLeavesOfType(VIEW_TYPE_FILE_METADATA)
       .forEach((leaf) => {
         if (leaf.view instanceof FileMetadataView) {
-          leaf.view.render();
+          void leaf.view.render();
         }
       });
   }
@@ -101,7 +107,7 @@ export default class FileMetadataPlugin extends Plugin {
   async activateView(): Promise<void> {
     const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE_FILE_METADATA);
     if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
+      await this.app.workspace.revealLeaf(existing[0]);
       return;
     }
 
@@ -109,6 +115,6 @@ export default class FileMetadataPlugin extends Plugin {
     if (!leaf) return;
 
     await leaf.setViewState({ type: VIEW_TYPE_FILE_METADATA, active: true });
-    this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.revealLeaf(leaf);
   }
 }

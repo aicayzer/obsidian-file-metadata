@@ -1,4 +1,4 @@
-import { HeadingCache, ItemView, Menu, Notice, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
+import { HeadingCache, ItemView, MarkdownView, Menu, Notice, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
 import exifr from 'exifr';
 import type FileMetadataPlugin from './main';
 import {
@@ -92,7 +92,7 @@ export class FileMetadataView extends ItemView {
   }
 
   getViewType(): string { return VIEW_TYPE_FILE_METADATA; }
-  getDisplayText(): string { return 'File Metadata'; }
+  getDisplayText(): string { return 'File metadata'; }
   getIcon(): string { return 'info'; }
 
   async onOpen(): Promise<void> {
@@ -213,7 +213,7 @@ export class FileMetadataView extends ItemView {
 
     headerSelf.addEventListener('click', () => {
       this.plugin.collapsedSections[title] = !isCollapsed;
-      this.render();
+      void this.render();
     });
 
     if (isCollapsed) return;
@@ -233,9 +233,10 @@ export class FileMetadataView extends ItemView {
 
       // Left-click: copy value
       if (this.plugin.settings.clickToCopy) {
-        self.addEventListener('click', async () => {
-          await navigator.clipboard.writeText(textToCopy);
-          new Notice(`Copied ${label.toLowerCase()}`);
+        self.addEventListener('click', () => {
+          void navigator.clipboard.writeText(textToCopy).then(() => {
+            new Notice(`Copied ${label.toLowerCase()}`);
+          });
         });
       }
 
@@ -246,16 +247,18 @@ export class FileMetadataView extends ItemView {
         menu.addItem(item => item
           .setTitle('Copy value')
           .setIcon('clipboard-copy')
-          .onClick(async () => {
-            await navigator.clipboard.writeText(textToCopy);
-            new Notice(`Copied ${label.toLowerCase()}`);
+          .onClick(() => {
+            void navigator.clipboard.writeText(textToCopy).then(() => {
+              new Notice(`Copied ${label.toLowerCase()}`);
+            });
           }));
         menu.addItem(item => item
           .setTitle(`Copy "${label}: ${value}"`)
           .setIcon('clipboard-list')
-          .onClick(async () => {
-            await navigator.clipboard.writeText(`${label}: ${value}`);
-            new Notice('Copied');
+          .onClick(() => {
+            void navigator.clipboard.writeText(`${label}: ${value}`).then(() => {
+              new Notice('Copied');
+            });
           }));
         menu.showAtMouseEvent(e);
       });
@@ -281,7 +284,7 @@ export class FileMetadataView extends ItemView {
 
     headerSelf.addEventListener('click', () => {
       this.plugin.collapsedSections['Outline'] = !isCollapsed;
-      this.render();
+      void this.render();
     });
 
     if (isCollapsed) return;
@@ -303,9 +306,9 @@ export class FileMetadataView extends ItemView {
     const leaf = this.app.workspace.getMostRecentLeaf();
     if (!leaf) return;
     const line = heading.position.start.line;
-    // @ts-ignore — editor is typed on MarkdownView but not the base View
-    const editor = leaf.view?.editor;
-    if (editor) {
+
+    if (leaf.view instanceof MarkdownView) {
+      const editor = leaf.view.editor;
       editor.setCursor({ line, ch: 0 });
       editor.scrollIntoView({ from: { line, ch: 0 }, to: { line, ch: 0 } }, true);
       leaf.view.containerEl.focus();

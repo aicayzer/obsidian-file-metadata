@@ -69,7 +69,7 @@ export class FileMetadataSettingTab extends PluginSettingTab {
 
     // ── File section ─────────────────────────────────────────────────────────
 
-    containerEl.createEl('h3', { text: 'File' });
+    new Setting(containerEl).setName("File").setHeading();
 
     new Setting(containerEl)
       .setName('Show file name')
@@ -115,11 +115,11 @@ export class FileMetadataSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Date format')
-      .setDesc('Choose how dates are displayed.')
+      .setDesc('Choose between short, long, or relative formatting for dates and times.')
       .addDropdown(d => d
-        .addOption('short', 'Short — 5 Mar 2026, 14:30')
-        .addOption('long', 'Long — Wed, 5 March 2026, 14:30')
-        .addOption('relative', 'Relative — 3h ago')
+        .addOption('short', 'Short')
+        .addOption('long', 'Long')
+        .addOption('relative', 'Relative')
         .setValue(this.plugin.settings.dateFormat)
         .onChange(async v => {
           this.plugin.settings.dateFormat = v as 'short' | 'long' | 'relative';
@@ -128,10 +128,10 @@ export class FileMetadataSettingTab extends PluginSettingTab {
 
     // ── Statistics ────────────────────────────────────────────────────────────
 
-    containerEl.createEl('h3', { text: 'Statistics' });
+    new Setting(containerEl).setName("Statistics").setHeading();
 
     new Setting(containerEl)
-      .setName('Show Statistics section')
+      .setName('Show statistics section')
       .setDesc('Display word count, character count, and other text statistics.')
       .addToggle(t => t
         .setValue(this.plugin.settings.showStatistics)
@@ -241,10 +241,10 @@ export class FileMetadataSettingTab extends PluginSettingTab {
 
     // ── Outline ───────────────────────────────────────────────────────────────
 
-    containerEl.createEl('h3', { text: 'Outline' });
+    new Setting(containerEl).setName("Outline").setHeading();
 
     new Setting(containerEl)
-      .setName('Show Outline section')
+      .setName('Show outline section')
       .setDesc('Display a clickable heading outline for the current note.')
       .addToggle(t => t
         .setValue(this.plugin.settings.showOutline)
@@ -252,7 +252,7 @@ export class FileMetadataSettingTab extends PluginSettingTab {
 
     // ── Behaviour ─────────────────────────────────────────────────────────────
 
-    containerEl.createEl('h3', { text: 'Behaviour' });
+    new Setting(containerEl).setName("Behaviour").setHeading();
 
     new Setting(containerEl)
       .setName('Click row to copy value')
