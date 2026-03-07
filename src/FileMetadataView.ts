@@ -1,4 +1,4 @@
-import { CachedMetadata, HeadingCache, ItemView, MarkdownView, Menu, Notice, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
+import { CachedMetadata, HeadingCache, ItemView, MarkdownView, Menu, Notice, TFile, WorkspaceLeaf } from 'obsidian';
 import exifr from 'exifr';
 import type FileMetadataPlugin from './main';
 import {
@@ -241,18 +241,19 @@ export class FileMetadataView extends ItemView {
     // ── Header ──────────────────────────────────────────────────────────
     const header = parent.createDiv({ cls: 'tree-item fm-header' });
     const headerSelf = header.createDiv({ cls: 'tree-item-self is-clickable' });
-
-    // Icon first in DOM (matches Obsidian's native tree-item structure);
-    // CSS order: 1 visually pushes it to the right.
-    const icon = headerSelf.createSpan({ cls: 'tree-item-icon collapse-icon' });
-    setIcon(icon, 'right-triangle');
-    if (!isCollapsed) icon.addClass('is-open');
+    headerSelf.setAttribute('tabindex', '0');
+    headerSelf.setAttribute('role', 'button');
+    headerSelf.setAttribute('aria-expanded', String(!isCollapsed));
 
     headerSelf.createDiv({ cls: 'tree-item-inner', text: title });
 
-    headerSelf.addEventListener('click', () => {
+    const toggleSection = (): void => {
       this.plugin.collapsedSections[title] = !isCollapsed;
       void this.render();
+    };
+    headerSelf.addEventListener('click', toggleSection);
+    headerSelf.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSection(); }
     });
 
     if (isCollapsed) return;
@@ -270,12 +271,18 @@ export class FileMetadataView extends ItemView {
 
       const textToCopy = copyValue ?? value;
 
-      // Left-click: copy value
+      // Left-click / keyboard: copy value
       if (this.plugin.settings.clickToCopy) {
-        self.addEventListener('click', () => {
+        self.setAttribute('tabindex', '0');
+        self.setAttribute('role', 'button');
+        const copyAction = (): void => {
           void navigator.clipboard.writeText(textToCopy).then(() => {
             new Notice(`Copied ${label.toLowerCase()}`);
           });
+        };
+        self.addEventListener('click', copyAction);
+        self.addEventListener('keydown', (e: KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyAction(); }
         });
       }
 
@@ -311,19 +318,20 @@ export class FileMetadataView extends ItemView {
   private renderOutline(parent: HTMLElement, headings: HeadingCache[]): void {
     const isCollapsed = this.plugin.collapsedSections['Outline'] ?? false;
 
-    // Header — icon first in DOM; CSS order: 1 pushes it visually right
     const header = parent.createDiv({ cls: 'tree-item fm-header' });
     const headerSelf = header.createDiv({ cls: 'tree-item-self is-clickable' });
-
-    const icon = headerSelf.createSpan({ cls: 'tree-item-icon collapse-icon' });
-    setIcon(icon, 'right-triangle');
-    if (!isCollapsed) icon.addClass('is-open');
-
+    headerSelf.setAttribute('tabindex', '0');
+    headerSelf.setAttribute('role', 'button');
+    headerSelf.setAttribute('aria-expanded', String(!isCollapsed));
     headerSelf.createDiv({ cls: 'tree-item-inner', text: 'Outline' });
 
-    headerSelf.addEventListener('click', () => {
+    const toggleOutline = (): void => {
       this.plugin.collapsedSections['Outline'] = !isCollapsed;
       void this.render();
+    };
+    headerSelf.addEventListener('click', toggleOutline);
+    headerSelf.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOutline(); }
     });
 
     if (isCollapsed) return;
@@ -335,9 +343,15 @@ export class FileMetadataView extends ItemView {
       const indent = (heading.level - minLevel) * 12;
       const row  = outline.createDiv({ cls: 'tree-item' });
       const self = row.createDiv({ cls: 'tree-item-self is-clickable' });
+      self.setAttribute('tabindex', '0');
+      self.setAttribute('role', 'link');
       self.style.paddingInlineStart = `calc(var(--size-4-2) + ${indent}px)`;
       self.createDiv({ cls: 'tree-item-inner', text: heading.heading });
-      self.addEventListener('click', () => this.navigateTo(heading));
+      const navigate = (): void => { this.navigateTo(heading); };
+      self.addEventListener('click', navigate);
+      self.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(); }
+      });
     }
   }
 
@@ -432,7 +446,7 @@ export class FileMetadataView extends ItemView {
     if (ext !== 'svg' && ext !== 'bmp' && ext !== 'gif') {
       try {
         const data = await this.app.vault.readBinary(file);
-        exifData = await exifr.parse(data as unknown as Uint8Array, {
+        exifData = await exifr.parse(new Uint8Array(data), {
           tiff: true,
           xmp:  false,
           icc:  false,
