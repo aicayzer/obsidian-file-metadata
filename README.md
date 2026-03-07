@@ -5,6 +5,7 @@ A sidebar panel for [Obsidian](https://obsidian.md) that shows file info, text s
 ## Features
 
 - **File info** — name, full path, folder, created/modified dates, size
+- **Details** — frontmatter tags, backlinks count, and all frontmatter properties
 - **Text statistics** — words, characters, sentences, paragraphs, estimated pages, reading time, readability score
 - **Link & code counts** — internal/external links, fenced code blocks
 - **Document outline** — clickable headings indented by level
@@ -57,6 +58,16 @@ Right-click any row to copy just the value, or copy the full "Label: Value" pair
 | Show modified date | On | Last modified date and time |
 | Show file size | On | Size on disk |
 | Date format | Short | Choose **Short** (5 Mar 2026, 14:30), **Long** (Wed, 5 March 2026, 14:30), or **Relative** (3h ago) |
+| Folder click copies | Vault path | Choose **Vault path** or **Obsidian URI** (`obsidian://open?vault=…`) |
+
+### Details
+
+| Setting | Default | Description |
+|---|---|---|
+| Show Details section | On | Toggle the entire section |
+| Show tags | On | Frontmatter and inline tags |
+| Show backlinks count | On | Number of notes linking to this file |
+| Show properties | On | All frontmatter key-value pairs |
 
 ### Statistics
 
@@ -94,11 +105,17 @@ If you have the [Style Settings](https://github.com/mgmeyers/obsidian-style-sett
 | Section header colour | Themed colour | Text normal |
 | Row label colour | Themed colour | Text muted |
 | Row value colour | Themed colour | Text normal |
+| Outline item colour | Themed colour | Text muted |
 | Section divider opacity | Slider (0–1) | 0.5 |
 | Spacing above divider | Number (px) | 12 |
 | Label column width | Slider (20–60%) | 40% |
 
 Without Style Settings installed, the plugin uses sensible defaults and looks identical.
+
+## Future improvements
+
+- Reveal file/folder in system file explorer (Finder/Explorer)
+- Configurable section ordering in settings
 
 ## Attribution
 

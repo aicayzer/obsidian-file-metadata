@@ -1,4 +1,4 @@
-import { HeadingCache, ItemView, MarkdownView, Menu, Notice, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
+import { CachedMetadata, HeadingCache, ItemView, MarkdownView, Menu, Notice, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
 import exifr from 'exifr';
 import type FileMetadataPlugin from './main';
 import {
@@ -123,7 +123,11 @@ export class FileMetadataView extends ItemView {
       fileRows.push({ label: 'File path', value: file.path });
     }
     if (s.showFolder) {
-      fileRows.push({ label: 'Folder', value: file.parent?.path || '/' });
+      const folderPath = file.parent?.path || '/';
+      const folderCopy = s.folderCopyFormat === 'uri'
+        ? `obsidian://open?vault=${encodeURIComponent(this.app.vault.getName())}&file=${encodeURIComponent(folderPath)}`
+        : folderPath;
+      fileRows.push({ label: 'Folder', value: folderPath, copyValue: folderCopy });
     }
     if (s.showCreated) {
       fileRows.push({ label: 'Created', value: formatDate(file.stat.ctime, s.dateFormat) });
@@ -180,6 +184,40 @@ export class FileMetadataView extends ItemView {
       this.renderSection(pane, 'Statistics', statsRows);
     }
 
+    // ── Details (markdown only) ─────────────────────────────────────────────
+    if (s.showDetails && ext === 'md') {
+      const cache = this.app.metadataCache.getFileCache(file);
+      const detailRows: Row[] = [];
+
+      if (s.showTags) {
+        const tags = this.collectTags(cache);
+        if (tags.length > 0) {
+          detailRows.push({ label: 'Tags', value: tags.join(', ') });
+        }
+      }
+
+      if (s.showBacklinks) {
+        detailRows.push({ label: 'Backlinks', value: fmt(this.countBacklinks(file)) });
+      }
+
+      if (s.showProperties && cache?.frontmatter) {
+        const skip = new Set<string>(['position']);
+        if (s.showTags) { skip.add('tags'); skip.add('tag'); }
+        for (const [key, val] of Object.entries(cache.frontmatter)) {
+          if (skip.has(key) || val === null || val === undefined) continue;
+          detailRows.push({
+            label: this.formatPropertyLabel(key),
+            value: this.formatPropertyValue(val),
+          });
+        }
+      }
+
+      if (detailRows.length > 0) {
+        this.renderDivider(pane);
+        this.renderSection(pane, 'Details', detailRows);
+      }
+    }
+
     // ── Outline (markdown only) ────────────────────────────────────────────
     if (s.showOutline && ext === 'md') {
       const headings = this.app.metadataCache.getFileCache(file)?.headings;
@@ -204,12 +242,13 @@ export class FileMetadataView extends ItemView {
     const header = parent.createDiv({ cls: 'tree-item fm-header' });
     const headerSelf = header.createDiv({ cls: 'tree-item-self is-clickable' });
 
-    // Title first; chevron pushed to the right via CSS margin-inline-start: auto
-    headerSelf.createDiv({ cls: 'tree-item-inner', text: title });
-
+    // Icon first in DOM (matches Obsidian's native tree-item structure);
+    // CSS order: 1 visually pushes it to the right.
     const icon = headerSelf.createSpan({ cls: 'tree-item-icon collapse-icon' });
     setIcon(icon, 'right-triangle');
     if (!isCollapsed) icon.addClass('is-open');
+
+    headerSelf.createDiv({ cls: 'tree-item-inner', text: title });
 
     headerSelf.addEventListener('click', () => {
       this.plugin.collapsedSections[title] = !isCollapsed;
@@ -272,15 +311,15 @@ export class FileMetadataView extends ItemView {
   private renderOutline(parent: HTMLElement, headings: HeadingCache[]): void {
     const isCollapsed = this.plugin.collapsedSections['Outline'] ?? false;
 
-    // Header — title first, chevron pushed right
+    // Header — icon first in DOM; CSS order: 1 pushes it visually right
     const header = parent.createDiv({ cls: 'tree-item fm-header' });
     const headerSelf = header.createDiv({ cls: 'tree-item-self is-clickable' });
-
-    headerSelf.createDiv({ cls: 'tree-item-inner', text: 'Outline' });
 
     const icon = headerSelf.createSpan({ cls: 'tree-item-icon collapse-icon' });
     setIcon(icon, 'right-triangle');
     if (!isCollapsed) icon.addClass('is-open');
+
+    headerSelf.createDiv({ cls: 'tree-item-inner', text: 'Outline' });
 
     headerSelf.addEventListener('click', () => {
       this.plugin.collapsedSections['Outline'] = !isCollapsed;
@@ -313,6 +352,59 @@ export class FileMetadataView extends ItemView {
       editor.scrollIntoView({ from: { line, ch: 0 }, to: { line, ch: 0 } }, true);
       leaf.view.containerEl.focus();
     }
+  }
+
+  /** Collect tags from both frontmatter and inline usage, deduplicated. */
+  private collectTags(cache: CachedMetadata | null): string[] {
+    const tags = new Set<string>();
+
+    // Frontmatter tags (may be array or single string)
+    const fmTags: unknown = cache?.frontmatter?.['tags'] ?? cache?.frontmatter?.['tag'];
+    if (Array.isArray(fmTags)) {
+      for (const t of fmTags) tags.add(String(t));
+    } else if (typeof fmTags === 'string') {
+      tags.add(fmTags);
+    }
+
+    // Inline tags (#tag in body text)
+    if (cache?.tags) {
+      for (const t of cache.tags) {
+        tags.add(t.tag.replace(/^#/, ''));
+      }
+    }
+
+    return [...tags];
+  }
+
+  /** Count unique files that link to this file. */
+  private countBacklinks(file: TFile): number {
+    const resolved = this.app.metadataCache.resolvedLinks;
+    let count = 0;
+    for (const sourcePath in resolved) {
+      if (resolved[sourcePath]?.[file.path]) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /** Turn a frontmatter key into a display label: "page-count" → "Page count". */
+  private formatPropertyLabel(key: string): string {
+    return key
+      .replace(/[-_]/g, ' ')
+      .replace(/^\w/, c => c.toUpperCase());
+  }
+
+  /** Format an arbitrary frontmatter value for display. */
+  private formatPropertyValue(val: unknown): string {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+    if (typeof val === 'number') return String(val);
+    if (typeof val === 'string') return val;
+    if (Array.isArray(val)) return val.map(v => String(v)).join(', ');
+    if (val instanceof Date) return val.toLocaleDateString('en-GB');
+    if (typeof val === 'object') return JSON.stringify(val);
+    return '';
   }
 
   /** Return the full filesystem path (desktop) or vault-relative path (mobile). */

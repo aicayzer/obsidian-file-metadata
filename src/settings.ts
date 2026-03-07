@@ -13,7 +13,13 @@ export interface FileMetadataSettings {
 
   // ── Section visibility ────────────────────────────
   showStatistics: boolean;
+  showDetails:    boolean;
   showOutline:    boolean;
+
+  // ── Details field visibility ─────────────────────
+  showTags:       boolean;
+  showBacklinks:  boolean;
+  showProperties: boolean;
 
   // ── Statistics field visibility ───────────────────
   showSentences:      boolean;
@@ -27,7 +33,8 @@ export interface FileMetadataSettings {
   showCodeBlocks:     boolean;
 
   // ── Behaviour ─────────────────────────────────────
-  clickToCopy: boolean;
+  clickToCopy:      boolean;
+  folderCopyFormat: 'path' | 'uri';
 }
 
 export const DEFAULT_SETTINGS: FileMetadataSettings = {
@@ -40,7 +47,12 @@ export const DEFAULT_SETTINGS: FileMetadataSettings = {
   dateFormat:   'short',
 
   showStatistics: true,
+  showDetails:    true,
   showOutline:    true,
+
+  showTags:       true,
+  showBacklinks:  true,
+  showProperties: true,
 
   showSentences:      true,
   showParagraphs:     true,
@@ -52,7 +64,8 @@ export const DEFAULT_SETTINGS: FileMetadataSettings = {
   showLinks:          false,
   showCodeBlocks:     false,
 
-  clickToCopy: true,
+  clickToCopy:      true,
+  folderCopyFormat: 'path',
 };
 
 export class FileMetadataSettingTab extends PluginSettingTab {
@@ -125,6 +138,59 @@ export class FileMetadataSettingTab extends PluginSettingTab {
           this.plugin.settings.dateFormat = v as 'short' | 'long' | 'relative';
           await this.save();
         }));
+
+    new Setting(containerEl)
+      .setName('Folder click copies')
+      .setDesc('Choose what is copied when you click the folder row.')
+      .addDropdown(d => d
+        .addOption('path', 'Vault path')
+        .addOption('uri', 'Obsidian link')
+        .setValue(this.plugin.settings.folderCopyFormat)
+        .onChange(async v => {
+          this.plugin.settings.folderCopyFormat = v as 'path' | 'uri';
+          await this.save();
+        }));
+
+    // ── Details ─────────────────────────────────────────────────────────────
+
+    new Setting(containerEl).setName("Details").setHeading();
+
+    new Setting(containerEl)
+      .setName('Show details section')
+      .setDesc('Display tags, backlinks, and frontmatter properties.')
+      .addToggle(t => t
+        .setValue(this.plugin.settings.showDetails)
+        .onChange(async v => {
+          this.plugin.settings.showDetails = v;
+          await this.save();
+          this.display();
+        }));
+
+    const detailsEnabled = this.plugin.settings.showDetails;
+
+    const tagsSetting = new Setting(containerEl)
+      .setName('Show tags')
+      .setDesc('Display frontmatter and inline tags.')
+      .addToggle(t => t
+        .setValue(this.plugin.settings.showTags)
+        .onChange(async v => { this.plugin.settings.showTags = v; await this.save(); }));
+    if (!detailsEnabled) tagsSetting.setDisabled(true);
+
+    const backlinksSetting = new Setting(containerEl)
+      .setName('Show backlinks count')
+      .setDesc('Number of other notes that link to this file.')
+      .addToggle(t => t
+        .setValue(this.plugin.settings.showBacklinks)
+        .onChange(async v => { this.plugin.settings.showBacklinks = v; await this.save(); }));
+    if (!detailsEnabled) backlinksSetting.setDisabled(true);
+
+    const propsSetting = new Setting(containerEl)
+      .setName('Show properties')
+      .setDesc('Display all frontmatter properties as key-value rows.')
+      .addToggle(t => t
+        .setValue(this.plugin.settings.showProperties)
+        .onChange(async v => { this.plugin.settings.showProperties = v; await this.save(); }));
+    if (!detailsEnabled) propsSetting.setDisabled(true);
 
     // ── Statistics ────────────────────────────────────────────────────────────
 

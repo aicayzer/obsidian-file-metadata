@@ -111,10 +111,11 @@ settings:
   flex: 1 1 auto;
 }
 
-/* Collapse chevron */
+/* Collapse chevron — kept first in DOM for Obsidian compat, visually moved right */
 .fm-header .tree-item-icon.collapse-icon {
   display: flex;
   align-items: center;
+  order: 1;
   margin-inline-start: auto;
   color: var(--text-faint);
   transition: transform 0.15s ease;
