@@ -73,7 +73,7 @@ export class FileMetadataSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Show file name')
-      .setDesc('Display the file name. Clicking copies the full vault path.')
+      .setDesc('Display the file name. Clicking copies the full file path.')
       .addToggle(t => t
         .setValue(this.plugin.settings.showFileName)
         .onChange(async v => { this.plugin.settings.showFileName = v; await this.save(); }));

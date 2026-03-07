@@ -81,12 +81,6 @@ interface Row {
   copyValue?: string;
 }
 
-interface HeaderAction {
-  icon: string;
-  title: string;
-  onClick: () => void;
-}
-
 // ── View ───────────────────────────────────────────────────────────────────
 
 export class FileMetadataView extends ItemView {
@@ -123,7 +117,7 @@ export class FileMetadataView extends ItemView {
     // ── File section ───────────────────────────────────────────────────────
     const fileRows: Row[] = [];
     if (s.showFileName) {
-      fileRows.push({ label: 'Name', value: file.name, copyValue: file.path });
+      fileRows.push({ label: 'Name', value: file.name, copyValue: this.getFullPath(file) });
     }
     if (s.showFilePath) {
       fileRows.push({ label: 'File path', value: file.path });
@@ -141,16 +135,7 @@ export class FileMetadataView extends ItemView {
       fileRows.push({ label: 'Size', value: formatSize(file.stat.size) });
     }
 
-    const fullPath = this.getFullPath(file);
-    this.renderSection(pane, 'File', fileRows, {
-      icon: 'clipboard-copy',
-      title: 'Copy file path',
-      onClick: () => {
-        void navigator.clipboard.writeText(fullPath).then(() => {
-          new Notice('Copied file path');
-        });
-      },
-    });
+    this.renderSection(pane, 'File', fileRows);
 
     // ── Image branch ───────────────────────────────────────────────────────
     if (IMAGE_EXTENSIONS.has(ext)) {
@@ -212,31 +197,19 @@ export class FileMetadataView extends ItemView {
    * Sections are collapsible — clicking the header toggles visibility.
    * Each data row is optionally clickable (copies value) and has a context menu.
    */
-  private renderSection(parent: HTMLElement, title: string, rows: Row[], headerAction?: HeaderAction): void {
+  private renderSection(parent: HTMLElement, title: string, rows: Row[]): void {
     const isCollapsed = this.plugin.collapsedSections[title] ?? false;
 
     // ── Header ──────────────────────────────────────────────────────────
     const header = parent.createDiv({ cls: 'tree-item fm-header' });
     const headerSelf = header.createDiv({ cls: 'tree-item-self is-clickable' });
 
-    // Collapse chevron
+    // Title first; chevron pushed to the right via CSS margin-inline-start: auto
+    headerSelf.createDiv({ cls: 'tree-item-inner', text: title });
+
     const icon = headerSelf.createSpan({ cls: 'tree-item-icon collapse-icon' });
     setIcon(icon, 'right-triangle');
     if (!isCollapsed) icon.addClass('is-open');
-
-    headerSelf.createDiv({ cls: 'tree-item-inner', text: title });
-
-    // Optional action button (e.g. copy path)
-    if (headerAction) {
-      const btn = headerSelf.createSpan({ cls: 'fm-header-action clickable-icon' });
-      setIcon(btn, headerAction.icon);
-      btn.ariaLabel = headerAction.title;
-      btn.setAttribute('data-tooltip-position', 'top');
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        headerAction.onClick();
-      });
-    }
 
     headerSelf.addEventListener('click', () => {
       this.plugin.collapsedSections[title] = !isCollapsed;
@@ -299,15 +272,15 @@ export class FileMetadataView extends ItemView {
   private renderOutline(parent: HTMLElement, headings: HeadingCache[]): void {
     const isCollapsed = this.plugin.collapsedSections['Outline'] ?? false;
 
-    // Header
+    // Header — title first, chevron pushed right
     const header = parent.createDiv({ cls: 'tree-item fm-header' });
     const headerSelf = header.createDiv({ cls: 'tree-item-self is-clickable' });
+
+    headerSelf.createDiv({ cls: 'tree-item-inner', text: 'Outline' });
 
     const icon = headerSelf.createSpan({ cls: 'tree-item-icon collapse-icon' });
     setIcon(icon, 'right-triangle');
     if (!isCollapsed) icon.addClass('is-open');
-
-    headerSelf.createDiv({ cls: 'tree-item-inner', text: 'Outline' });
 
     headerSelf.addEventListener('click', () => {
       this.plugin.collapsedSections['Outline'] = !isCollapsed;
