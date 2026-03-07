@@ -111,8 +111,10 @@ settings:
   flex: 1 1 auto;
 }
 
-/* Collapse chevron — kept first in DOM for Obsidian compat, visually moved right */
+/* Collapse chevron — Obsidian sets position:absolute on .collapse-icon which removes
+   it from flex flow.  Override to static so order + margin-auto can push it right. */
 .fm-header .tree-item-icon.collapse-icon {
+  position: static;
   display: flex;
   align-items: center;
   order: 1;
