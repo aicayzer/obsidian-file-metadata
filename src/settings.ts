@@ -18,7 +18,8 @@ export interface FileMetadataSettings {
 
   // ── Details field visibility ─────────────────────
   showTags:       boolean;
-  showBacklinks:  boolean;
+  showBacklinks:      boolean;
+  showOutgoingLinks:  boolean;
   showProperties: boolean;
 
   // ── Statistics field visibility ───────────────────
@@ -51,7 +52,8 @@ export const DEFAULT_SETTINGS: FileMetadataSettings = {
   showOutline:    true,
 
   showTags:       true,
-  showBacklinks:  true,
+  showBacklinks:      true,
+  showOutgoingLinks:  true,
   showProperties: true,
 
   showSentences:      true,
@@ -183,6 +185,14 @@ export class FileMetadataSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.showBacklinks)
         .onChange(async v => { this.plugin.settings.showBacklinks = v; await this.save(); }));
     if (!detailsEnabled) backlinksSetting.setDisabled(true);
+
+    const outgoingLinksSetting = new Setting(containerEl)
+      .setName('Show outgoing links count')
+      .setDesc('Number of other notes this file links to.')
+      .addToggle(t => t
+        .setValue(this.plugin.settings.showOutgoingLinks)
+        .onChange(async v => { this.plugin.settings.showOutgoingLinks = v; await this.save(); }));
+    if (!detailsEnabled) outgoingLinksSetting.setDisabled(true);
 
     const propsSetting = new Setting(containerEl)
       .setName('Show properties')

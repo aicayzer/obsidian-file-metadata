@@ -199,6 +199,9 @@ export class FileMetadataView extends ItemView {
       if (s.showBacklinks) {
         detailRows.push({ label: 'Backlinks', value: fmt(this.countBacklinks(file)) });
       }
+      if (s.showOutgoingLinks) {
+        detailRows.push({ label: 'Outgoing', value: fmt(this.countOutgoingLinks(file)) });
+      }
 
       if (s.showProperties && cache?.frontmatter) {
         const skip = new Set<string>(['position']);
@@ -400,6 +403,12 @@ export class FileMetadataView extends ItemView {
       }
     }
     return count;
+  }
+
+  /** Count unique files that this file links to. */
+  private countOutgoingLinks(file: TFile): number {
+    const targets = this.app.metadataCache.resolvedLinks[file.path];
+    return targets ? Object.keys(targets).length : 0;
   }
 
   /** Turn a frontmatter key into a display label: "page-count" → "Page count". */
