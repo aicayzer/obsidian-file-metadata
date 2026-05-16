@@ -2,14 +2,6 @@
 
 A sidebar panel for [Obsidian](https://obsidian.md) that shows file info, text statistics, and a document outline — without touching your frontmatter.
 
-<table border="0">
-  <tr>
-    <td><img width="1840" height="1136" alt="screenshot-Obsidian-2026-03-10-000888@2x" src="https://github.com/user-attachments/assets/d6657542-f263-4ce0-8e6d-0e712fb43617" /></td>
-    <td><img width="1840" height="1136" alt="screenshot-Obsidian-2026-03-10-000894@2x" src="https://github.com/user-attachments/assets/0f9ebd3b-b2da-4419-9650-7c614f45e6ca" /></td>
-    <td><img width="1840" height="1136" alt="screenshot-Obsidian-2026-03-10-000890@2x" src="https://github.com/user-attachments/assets/3f9bdd91-1c61-4112-91a9-d447e543146b" /></td>
-  </tr>
-</table>
-
 ## Features
 
 - **File info** — name, full path, folder, created/modified dates, size
@@ -23,6 +15,8 @@ A sidebar panel for [Obsidian](https://obsidian.md) that shows file info, text s
 - **Date format** — choose between short, long, or relative date display
 - **Style Settings support** — customise colours, spacing, and layout via the [Style Settings](https://github.com/mgmeyers/obsidian-style-settings) plugin
 - **Configurable** — toggle individual fields and sections on or off in Settings
+
+![File Metadata plugin showing the sidebar panel with file info, statistics, and outline sections](file-metadata-preview-screenshots.png)
 
 ## Installation
 
